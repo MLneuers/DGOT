@@ -1,0 +1,1 @@
+python train.py --num_timesteps 4 --seed 666 --batch_size 512 --num_epoch 500 --exp exp0 --feature_len=52 --dataset thyroid_sick --class_num 2 --lr_d 8e-5 --lr_g 5e-3 --beta1 0.8 --beta2 0.9 --save_content_every 50 --save_ckpt_every 5 --save_content  --pw1 1 --pw2 1 --init_ch 16 --ch_mult 1 2 2 --nz 50 --rbg 4 --t_emb_dim 32 --ngf 32
