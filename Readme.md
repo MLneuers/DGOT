@@ -20,12 +20,11 @@ Here we describe the neccesary info for reproducing the experimental results.
 
 `models/` -- implementation of the proposed method.  
 `train.py` is used to train DGOT using a given configs.
-
 `evaluation.py` is used to evaluate DGOT on imbalanced data by using a evaluation model.
 
 All main scripts are in `scripts/` folder:
 
-- scripts`/evaluate_[binary|multi].py` are used to evaluate DGOT.
+- `scripts/evaluate_[binary|multi].py` are used to evaluate DGOT.
 - `scripts/dataprocessing`.py -- related to data processing and loading.
 
 Data folder (`datasets_prep/`):
