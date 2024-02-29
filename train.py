@@ -3,10 +3,7 @@ import argparse
 from tqdm.auto import tqdm
 
 import numpy as np
-import pandas as pd
 import os
-
-from einops import rearrange
 
 import torch
 import torch.nn as nn
@@ -48,7 +45,7 @@ def celoss(outputs, labels):
 
 # %%
 def train(rank, gpu, args):
-    from datasets_prep.dataprocessing import datasets
+    from scripts.dataprocessing import datasets
 
     from models.GaussionDiffusion import sample_posterior, q_sample_pairs
     from models.GaussionDiffusion import Diffusion_Coefficients, Posterior_Coefficients

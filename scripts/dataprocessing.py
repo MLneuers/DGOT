@@ -30,34 +30,6 @@ def make_imbalance(data, rate, taskclass):
 
     return data[idx,:-1], categories
 
-
-def TEP_processing(datapath, savepath, rate=[], taskclass=[], test_imbalance = False):
-    # import data
-    data = np.load(os.path.join(datapath, 'TEP.npy'))
-
-    # train_test_split
-    xtrain, xtest, ytrain, ytest = train_test_split(data[:, :-1], data[:, -1], shuffle=False)
-
-    # making the data distribution unbalanced
-    xtrain, ytrain = make_imbalance(np.hstack([xtrain,ytrain.reshape(len(ytrain),1)]), rate, taskclass)
-
-    if not test_imbalance:
-        rate = [1]*len(taskclass)
-    xtest, ytest = make_imbalance(np.hstack([xtest,ytest.reshape(len(ytest),1)]), rate, taskclass)
-
-    xtrain = rearrange(xtrain, 'a b -> a 1 b')
-    xtest = rearrange(xtest, 'a b -> a 1 b')
-
-    # make path
-    if not os.path.exists(savepath):
-        os.makedirs(savepath)
-
-    #save data
-    np.save(os.path.join(savepath, 'xtrain.npy'), xtrain)
-    np.save(os.path.join(savepath, 'xtest.npy'), xtest)
-    np.save(os.path.join(savepath, 'ytrain.npy'), ytrain)
-    np.save(os.path.join(savepath, 'ytest.npy'), ytest)
-
 def make_dir(dirpath):
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
