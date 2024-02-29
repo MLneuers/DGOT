@@ -18,8 +18,9 @@ Here we describe the neccesary info for reproducing the experimental results.
 
 ## File structure
 
-`models/` -- implementation of the proposed method  
+`models/` -- implementation of the proposed method.  
 `train.py` is used to train DGOT using a given configs.
+
 `evaluation.py` is used to evaluate DGOT on imbalanced data by using a evaluation model.
 
 All main scripts are in `scripts/` folder:
