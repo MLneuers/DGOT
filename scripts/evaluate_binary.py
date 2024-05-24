@@ -19,6 +19,7 @@ from imblearn.metrics import geometric_mean_score as gm
 import imblearn.over_sampling as ios
 import imblearn.combine as ico
 import smote_variants as sv
+from sklearn.model_selection import train_test_split
 
 
 def exists(x):
@@ -31,7 +32,6 @@ def configs_read(configs_file):
 
     return configs
 
-
 def indicator_cls(labels, predicted, predicted_prob):
     accuracy = accuracy_score(labels, predicted)
     macro_f1 = metrics.f1_score(labels, predicted, average='macro')
@@ -41,6 +41,8 @@ def indicator_cls(labels, predicted, predicted_prob):
     return {"accuracy": accuracy,
             "macro_f1": macro_f1,
             'mcc':mcc,}
+
+
 
 
 def sample_from_model(coefficients, generator, n_time, x_init, nz, nclass):
@@ -67,7 +69,7 @@ def x_init_sample(pos_coeff,sample_batch,args):
     minor = Xdata[index, :, :][0]
     idx = np.random.randint(0, minor.shape[0], sample_batch)
     minor_torch = torch.tensor(minor[idx], device='cuda:0',dtype=torch.float32)
-    X_init = pos_coeff.alphas_cumprod[-1] * minor_torch + (1-pos_coeff.alphas_cumprod[-1]) * torch.rand_like(minor_torch)
+    X_init = pos_coeff.sqrt_alphas_cumprod[-1] * minor_torch + pos_coeff.sqrt_one_minus_alphas_cumprod[-1] * torch.rand_like(minor_torch)
 
     return X_init
 
@@ -80,8 +82,8 @@ def BTDG_sample_evaluate(init_num, final_num, xtrain, ytrain, xtest, ytest, clas
         ytrain = np.hstack([ytrain, np.array(classidx)])
 
         classnum = torch.tensor(attrvalues[np.array(classidx)]).to(device)
-        # x_t_1 = torch.randn([sample_batch, 1, args_train.feature_len], device=device).float()
-        x_t_1 = x_init_sample(pos_coeff,sample_batch,args_train)
+        x_t_1 = torch.randn([sample_batch, 1, args_train.feature_len], device=device).float()
+        # x_t_1 = x_init_sample(pos_coeff,sample_batch,args_train)
         fake_sample = sample_from_model(pos_coeff, netG, args_train.num_timesteps,
                                         x_t_1, args_train.nz, classnum)
         fake_data = np.array(fake_sample.to('cpu'))
@@ -121,6 +123,7 @@ def BTDG(filepath, testpath, classifiers, oversample_rate, repetitions=20, slog=
     xtest = np.load(os.path.join(testpath, 'xtest.npy'))
     ytest = np.load(os.path.join(testpath, 'ytest.npy'))
 
+
     init_num = [j for _, j in sorted(Counter(ytrain).items())]  # The number of each category
     final_num = int(max(init_num)*oversample_rate) # The number of major category
 
@@ -143,6 +146,7 @@ def BTDG(filepath, testpath, classifiers, oversample_rate, repetitions=20, slog=
         model_path = os.path.join(exp_path, f'netG_{slog}.pth')
         netG.load_state_dict(torch.load(model_path, map_location=device), strict=False)
     else:
+        _, X_val, _, y_val = train_test_split(xtest, ytest, random_state=666, test_size=0.3)
         best_macro_f1 = 0
         slog_list = [i for i in range(0, args_train.num_epoch, args_train.save_ckpt_every)]
 
@@ -152,7 +156,7 @@ def BTDG(filepath, testpath, classifiers, oversample_rate, repetitions=20, slog=
                 netG.load_state_dict(torch.load(model_path, map_location=device), strict=False)
                 performance = []
                 for k in range(1):
-                    results = BTDG_sample_evaluate(init_num, final_num, xtrain, ytrain, xtest, ytest, classifiers, args_train, netG, pos_coeff, device)
+                    results = BTDG_sample_evaluate(init_num, final_num, xtrain, ytrain, X_val, y_val, classifiers, args_train, netG, pos_coeff, device)
                     performance.append(results)
                 temp = pd.DataFrame(performance)
                 means = temp.mean(axis=0)
@@ -180,8 +184,8 @@ def BTDG(filepath, testpath, classifiers, oversample_rate, repetitions=20, slog=
     temp = pd.DataFrame(performance)
     means = temp.mean(axis=0)
     std = temp.std(axis=0)
-    temp = temp.append(means, ignore_index=True)
-    results = temp.append(std, ignore_index=True)
+    temp = temp._append(means, ignore_index=True)
+    results = temp._append(std, ignore_index=True)
 
     return results, slog
 

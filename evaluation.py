@@ -89,7 +89,7 @@ def validation(args,exp):
 		os.makedirs(result_filepath)
 	classifiers = _MODELS['binary_classification']
 
-	methods = [ 'BTDG_d']
+	methods = [ 'BTDG']
 	columns  = ['accuracy', 'macro_f1','mcc']
 	result = dict.fromkeys(methods, pd.DataFrame(columns=[x for x in columns]))
 
@@ -120,11 +120,11 @@ def validation(args,exp):
 
 
 
-		result['BTDG'] = result['BTDG'].append(BTDG.head(repeat), ignore_index=True)
+		result['BTDG'] = result['BTDG']._append(BTDG.head(repeat), ignore_index=True)
 		logall.append(logs)
 
 
-	result['BTDG_d'].to_csv(f'{result_filepath}/{data_name}.csv')
+	result['BTDG'].to_csv(f'{result_filepath}/{data_name}.csv')
 
 	return logall
 
@@ -135,11 +135,11 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser('Test parameters')
 
 	# data preparation
-	parser.add_argument('--data_name', default='thyroid_sick', help='name of data')
+	parser.add_argument('--data_name', default='abalone_15', help='name of data')
 	parser.add_argument('--task_name', default='binary', help='task of classification: binary/multi')
 
 	# experiment param
-	parser.add_argument('--exps', nargs='+',type=int, default=[0,1,2,3,4])
+	parser.add_argument('--exps', nargs='+',type=int, default=[0])
 	parser.add_argument('--slog', nargs='+',type=int, default=None)
 	parser.add_argument('--repeats', type=int, default=10)
 

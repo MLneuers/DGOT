@@ -15,6 +15,7 @@ from sklearn.metrics import accuracy_score
 import sklearn.metrics as metrics
 from sklearn.metrics import classification_report
 from imblearn.metrics import geometric_mean_score as gm
+from sklearn.model_selection import train_test_split
 
 #%%
 def exists(x):
@@ -134,95 +135,96 @@ def taskf1_gmeans(resultdicts,repeat):
 	return p_min, gmeans, p_avg
 #%%
 def model_load(net,log,path):
-    model_path = os.path.join(path, f'netG_{log}.pth')
-    net.load_state_dict(torch.load(model_path, map_location='cuda'), strict=False)
+	model_path = os.path.join(path, f'netG_{log}.pth')
+	net.load_state_dict(torch.load(model_path, map_location='cuda'), strict=False)
 #%%
 def BTDG(filepath, testpath, classifiers, oversample_rate, repetitions=20, slog=None, devices='cuda'):
 
-    from models.GaussionDiffusion import Posterior_Coefficients
-    from models.Generator import Unet
+	from models.GaussionDiffusion import Posterior_Coefficients
+	from models.Generator import Unet
 
-    configs_file = os.path.join(filepath, 'configs.yaml')
-    args_train = configs_read(configs_file)
-    device = torch.device(devices)
-    pos_coeff = Posterior_Coefficients(args_train, device)
-    attrvalues = np.eye(args_train.class_num)  # Conditional information
+	configs_file = os.path.join(filepath, 'configs.yaml')
+	args_train = configs_read(configs_file)
+	device = torch.device(devices)
+	pos_coeff = Posterior_Coefficients(args_train, device)
+	attrvalues = np.eye(args_train.class_num)  # Conditional information
 
-    datapath = f'./datasets_prep/{args_train.dataset}/BTDG/{args_train.exp}'
+	datapath = f'./datasets_prep/{args_train.dataset}/BTDG/{args_train.exp}'
 
-    # load test data
-    xtrain = np.load(os.path.join(datapath, 'xtrain.npy')).squeeze()
-    ytrain = np.load(os.path.join(datapath, 'ytrain.npy'))
-    xtest = np.load(os.path.join(testpath, 'xtest.npy'))
-    ytest = np.load(os.path.join(testpath, 'ytest.npy'))
+	# load test data
+	xtrain = np.load(os.path.join(datapath, 'xtrain.npy')).squeeze()
+	ytrain = np.load(os.path.join(datapath, 'ytrain.npy'))
+	xtest = np.load(os.path.join(testpath, 'xtest.npy'))
+	ytest = np.load(os.path.join(testpath, 'ytest.npy'))
 
-    init_num = [j for _, j in sorted(Counter(ytrain).items())]  # The number of each category
-    final_num = int(max(init_num) * oversample_rate)  # The number of major category
+	init_num = [j for _, j in sorted(Counter(ytrain).items())]  # The number of each category
+	final_num = int(max(init_num) * oversample_rate)  # The number of major category
 
-    # load model
-    netG = Unet(
-    in_ch=1,
-    out_ch=1,
-    init_dim=args_train.feature_len,
-    nz=args_train.nz + attrvalues.shape[0],
-    init_ch=args_train.init_ch,
-    ch_mult=args_train.ch_mult,
-    resnet_block_groups=args_train.rbg,
-    ).to(device)
-    # exp = args_train.exp
-    # parent_dir = "./saved_log/BTDG/pure_D/{}".format(args_train.dataset)
-    exp_path = filepath
-    # Whether to automatically find the best results
+	# load model
+	netG = Unet(
+	in_ch=1,
+	out_ch=1,
+	init_dim=args_train.feature_len,
+	nz=args_train.nz + attrvalues.shape[0],
+	init_ch=args_train.init_ch,
+	ch_mult=args_train.ch_mult,
+	resnet_block_groups=args_train.rbg,
+	).to(device)
+	# exp = args_train.exp
+	# parent_dir = "./saved_log/BTDG/pure_D/{}".format(args_train.dataset)
+	exp_path = filepath
+	# Whether to automatically find the best results
 
-    if exists(slog):
-        model_path = os.path.join(exp_path, f'netG_{slog}.pth')
-        netG.load_state_dict(torch.load(model_path, map_location=device), strict=False)
-    else:
-        best_macro_f1 = 0
-        slog_list = [i for i in range(0, args_train.num_epoch, args_train.save_ckpt_every)]
+	if exists(slog):
+		model_path = os.path.join(exp_path, f'netG_{slog}.pth')
+		netG.load_state_dict(torch.load(model_path, map_location=device), strict=False)
+	else:
+		_, X_val, _, y_val = train_test_split(xtest, ytest, random_state=666, test_size=0.3)
+		best_macro_f1 = 0
+		slog_list = [i for i in range(0, args_train.num_epoch, args_train.save_ckpt_every)]
 
-        with tqdm(initial=10, total=len(slog_list)) as pbar:
-            for logs in slog_list[10:]:
-                model_path = os.path.join(exp_path, f'netG_{logs}.pth')
-                netG.load_state_dict(torch.load(model_path, map_location=device), strict=False)
-                performance = []
-                for k in range(1):
-                    results1, _ = BTDG_sample_evaluate(init_num, final_num, xtrain, ytrain, xtest, ytest, classifiers,
-                                                   args_train, netG, pos_coeff, device)
-                    performance.append(results1)
-                temp = pd.DataFrame(performance)
-                means = temp.mean(axis=0)
+		with tqdm(initial=10, total=len(slog_list)) as pbar:
+			for logs in slog_list[10:]:
+				model_path = os.path.join(exp_path, f'netG_{logs}.pth')
+				netG.load_state_dict(torch.load(model_path, map_location=device), strict=False)
+				performance = []
+				for k in range(1):
+					results1, _ = BTDG_sample_evaluate(init_num, final_num, xtrain, ytrain, X_val, y_val, classifiers,
+												   args_train, netG, pos_coeff, device)
+					performance.append(results1)
+				temp = pd.DataFrame(performance)
+				means = temp.mean(axis=0)
 
-                # best_macro_f1
-                if best_macro_f1 < means['macro_f1']:
-                    best_macro_f1 = means['macro_f1']
-                    slog = logs
+				# best_macro_f1
+				if best_macro_f1 < means['macro_f1']:
+					best_macro_f1 = means['macro_f1']
+					slog = logs
 
-                pbar.set_description(f'Searching the optimal model: slog {slog} macro_f1 {best_macro_f1}')
-                pbar.update(1)
+				pbar.set_description(f'Searching the optimal model: slog {slog} macro_f1 {best_macro_f1}')
+				pbar.update(1)
 
-    # over_sample and evaluation
-    model_path = os.path.join(exp_path, f'netG_{slog}.pth')
-    netG.load_state_dict(torch.load(model_path, map_location=device), strict=False)
-    performance1 = []
-    performance2 = []
-    with tqdm(initial=0, total=repetitions) as pbar:
-        for k in range(repetitions):
-            results, results2 = BTDG_sample_evaluate(init_num, final_num, xtrain, ytrain, xtest, ytest, classifiers,
-                                                     args_train,
-                                                     netG, pos_coeff, device)
-            performance1.append(results)
-            performance2.append(results2)
+	# over_sample and evaluation
+	model_path = os.path.join(exp_path, f'netG_{slog}.pth')
+	netG.load_state_dict(torch.load(model_path, map_location=device), strict=False)
+	performance1 = []
+	performance2 = []
+	with tqdm(initial=0, total=repetitions) as pbar:
+		for k in range(repetitions):
+			results, results2 = BTDG_sample_evaluate(init_num, final_num, xtrain, ytrain, xtest, ytest, classifiers,
+													 args_train,
+													 netG, pos_coeff, device)
+			performance1.append(results)
+			performance2.append(results2)
 
-            pbar.set_description(f'the testing procedure of BTDG_{slog} over-sampling approach')
-            pbar.update(1)
+			pbar.set_description(f'the testing procedure of BTDG_{slog} over-sampling approach')
+			pbar.update(1)
 
-    results1 = mean_std(performance1)
-    p_min, gmean, p_avg = taskf1_gmeans(performance2, repetitions)
-    p_min = mean_std(p_min, columns_name=['p_min'])
-    gmean = mean_std(gmean, columns_name=['gmean'])
-    p_avg = mean_std(p_avg, columns_name=['p_avg'])
+	results1 = mean_std(performance1)
+	p_min, gmean, p_avg = taskf1_gmeans(performance2, repetitions)
+	p_min = mean_std(p_min, columns_name=['p_min'])
+	gmean = mean_std(gmean, columns_name=['gmean'])
+	p_avg = mean_std(p_avg, columns_name=['p_avg'])
 
-    data = pd.concat([results1, p_min, gmean, p_avg], axis=1)
+	data = pd.concat([results1, p_min, gmean, p_avg], axis=1)
 
-    return data, slog
+	return data, slog
